@@ -4,6 +4,7 @@ import { Telegraf } from "telegraf";
 import { useNewReplies } from "telegraf/future";
 import MESSSAGES_FIRST from "./messagesFirst.json";
 import MESSSAGES_SECOND from "./messagesSecond.json";
+import WARNING_MESSSAGES from "./messagesWarning.json";
 
 dotenv.config();
 
@@ -21,7 +22,7 @@ const commandMappingProjects = {
   deployz406: "web-z400-006",
   deployz408: "web-z400-008",
 };
-const commandlineMessage = `\n\n/deployz003\nShort Descripton: \n\n/deployz01\nShort Descripton: \n\n/deployz101\nShort Descripton: \n\n/deployz402\nShort Descripton: \n\n/deployz403\nShort Descripton: \n\n/deployz404\nShort Descripton: \n\n/deployz405\nShort Descripton: \n\n/deployz406\nShort Descripton: \n\n/deployz408\nShort Descripton: \n\n`;
+const commandlineMessage = `\n/deployz003\nShort Description: \n\n/deployz01\nShort Description: \n\n/deployz101\nShort Description: \n\n/deployz402\nShort Description: \n\n/deployz403\nShort Description: \n\n/deployz404\nShort Description: \n\n/deployz405\nShort Description: \n\n/deployz406\nShort Description: \n\n/deployz408\nShort Description: \n\n`;
 const messageToQCMembers = "@bpm_sonny @qcba_gump @qcba_wukong";
 
 if (typeof botToken !== "string") throw new Error("Need a token").message;
@@ -45,7 +46,7 @@ const handleDeployProcess = async (
   ctx.reply(MESSSAGES_FIRST[randomNumber()]);
 
   sendMessageInGroup(
-    `To: ${messageToQCMembers} \n\nProject Id: ${projectId}\nStatus: Deploying\nShort Description: ${description} \n\n`
+    `Project Id: ${projectId}\nStatus: Deploying\nShort Description: ${description} \n\n`
   );
   try {
     console.log("projectId", projectId);
@@ -60,9 +61,9 @@ const handleDeployProcess = async (
         console.log("stderr", stderr);
 
         if (error !== null) {
-          ctx.reply(`Build lỗi rồi Chú, check lại lẹ lẹ \n Message: ${error}`);
+          ctx.reply(`Build lỗi rồi Chú, check lại lẹ lẹ \n`);
           sendMessageInGroup(
-            `To: ${messageToQCMembers} \n\nProject Id: ${projectId}\nStatus: Failed\n\nShort Description: ${description} \n`
+            `Project Id: ${projectId}\nStatus: Failed\n\nShort Description: ${description} \n`
           );
         } else {
           ctx.reply(MESSSAGES_SECOND[randomNumber()]);
@@ -74,56 +75,59 @@ const handleDeployProcess = async (
     );
   } catch (error) {
     console.log("error", error);
-    ctx.reply(`Build lỗi rồi Chú, check lại lẹ lẹ \n Message: ${error}`);
+    ctx.reply(`Build lỗi rồi Chú, check lại lẹ lẹ \n`);
     sendMessageInGroup(
-      `To: ${messageToQCMembers} \n\nProject Id: ${projectId}\nStatus: Failed\n\nShort Description: ${description} \n`
+      `Project Id: ${projectId}\nStatus: Failed\n\nShort Description: ${description} \n`
     );
   }
 };
 
 const onMessage = (ctx: any) => {
-  const data = ctx.message.text.split("\n");
-  if (!/^[\/]{1}[a-z]*$/.test(data[0])) {
-    ctx.reply(`Gõ bay ak may.`);
-    return;
-  }
+  try {
+    const data = ctx.message.text.split("\n");
+    if (!/^[\/]{1}/.test(data[0])) {
+      ctx.reply(WARNING_MESSSAGES[randomNumber()]);
+    }
 
-  const commandText = data[0].split("/")[1].trim() || "";
+    const commandText = data[0].split("/")[1].trim() || "";
 
-  if ("help" === getProjectIdByCommand(commandMappingProjects, commandText)) {
-    ctx.reply(
-      `Gõ\n\n/projectKey+deploy\nDescripton: [TicketID] short description (1 line).\n\n- Ví dụ:\n\n/z003deploy\nShort Descripton: [WZ001-01] Implement News detail feature\n\n- List command:${commandlineMessage}`
+    if ("help" === getProjectIdByCommand(commandMappingProjects, commandText)) {
+      ctx.reply(
+        `Gõ\n\n/deploy+projectKey\nDescription: [TicketID] short description (1 line).\n\n- Ví dụ:\n/deployz01\nShort Description: [Z01SV02-01] Implement News detail feature\n\n- List command:${commandlineMessage}`
+      );
+      return;
+    }
+
+    // Validate
+    if (!Object.keys(commandMappingProjects).includes(commandText)) {
+      ctx.reply(`Command hướng dẫn rùi còn sai ba 😂 Lần sau phạt nghe.`);
+      return;
+    }
+
+    const description = data[1] ? data[1].split(":")[1].trim() : "";
+    if (description === "") {
+      ctx.reply(`Deploy mà không có Description hả ní.`);
+      return;
+    }
+
+    // Deploying
+    const commandList = commandMappingProjects;
+    Object.freeze(commandList);
+
+    const isNode14 = isBuildWithNode14(commandList, commandText);
+    if (isNode14) {
+      ctx.reply(`Chưa setup kịp. build bằng command line trước đi brother.`);
+    }
+
+    handleDeployProcess(
+      getProjectIdByCommand(commandMappingProjects, commandText),
+      description,
+      ctx,
+      isNode14
     );
-    return;
+  } catch (error) {
+    console.log("error", error);
   }
-
-  // Validate
-  if (!Object.keys(commandMappingProjects).includes(commandText)) {
-    ctx.reply(`Command hướng dẫn rùi còn sai ba :)) Lần sau phạt nghe.`);
-    return;
-  }
-
-  const description = data[1] ? data[1].split(":")[1].trim() : "";
-  if (description === "") {
-    ctx.reply(`Deploy mà không có Description hả ní.`);
-    return;
-  }
-
-  // Deploying
-  const commandList = commandMappingProjects;
-  Object.freeze(commandList);
-
-  const isNode14 = isBuildWithNode14(commandList, commandText);
-  if (isNode14) {
-    ctx.reply(`Chưa setup kịp. build bằng command line trước đi brother.`);
-  }
-
-  handleDeployProcess(
-    getProjectIdByCommand(commandMappingProjects, commandText),
-    description,
-    ctx,
-    isNode14
-  );
 };
 
 const getProjectIdByCommand = (commandLine: any, searchKey: any) => {
