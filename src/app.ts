@@ -83,6 +83,11 @@ const handleDeployProcess = async (
 
 const onMessage = (ctx: any) => {
   const data = ctx.message.text.split("\n");
+  if (!/^[\/]{1}[a-z]*$/.test(data[0])) {
+    ctx.reply(`Gõ bay ak may.`);
+    return;
+  }
+
   const commandText = data[0].split("/")[1].trim() || "";
 
   if ("help" === getProjectIdByCommand(commandMappingProjects, commandText)) {
